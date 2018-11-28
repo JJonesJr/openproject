@@ -121,6 +121,11 @@ RSpec.feature 'Work package copy', js: true, selenium: true do
 
     work_package_page.expect_activity user, number: 1
     work_package_page.expect_current_path
+
+    work_package_page.visit_tab! :relations
+    expect_angular_frontend_initialized
+    expect(page).to have_selector('.relation-group--header', text: 'RELATED TO')
+    expect(page).to have_selector('.wp-relations--subject-field', text: original_work_package.subject)
   end
 
   scenario 'on split screen page' do
@@ -152,5 +157,11 @@ RSpec.feature 'Work package copy', js: true, selenium: true do
 
     work_package_page.expect_activity user, number: 1
     work_package_page.expect_current_path
+
+
+    work_package_page.visit_tab!('relations')
+    expect_angular_frontend_initialized
+    expect(page).to have_selector('.relation-group--header', text: 'RELATED TO')
+    expect(page).to have_selector('.wp-relations--subject-field', text: original_work_package.subject)
   end
 end

@@ -30,18 +30,35 @@ import {take} from 'rxjs/operators';
 import {WorkPackageResource} from 'core-app/modules/hal/resources/work-package-resource';
 import {WorkPackageChangeset} from 'core-components/wp-edit-form/work-package-changeset';
 import {WorkPackageCreateController} from 'core-components/wp-new/wp-create.controller';
+import {WorkPackageRelationsService} from "core-components/wp-relations/wp-relations.service";
 
 export class WorkPackageCopyController extends WorkPackageCreateController {
+  private __initialized_at:Number;
+  private copiedWorkPackageId:string;
+
+  private wpRelations:WorkPackageRelationsService = this.injector.get(WorkPackageRelationsService);
+
+  public addRelationListener() {
+    this.wpCreate.onNewWorkPackage()
+      .subscribe((wp:WorkPackageResource) => {
+          if (wp.__initialized_at === this.__initialized_at) {
+            this.wpRelations.addCommonRelation(wp.id, 'relates', this.copiedWorkPackageId);
+          }
+        });
+  }
+
   protected newWorkPackageFromParams(stateParams:any) {
+    this.copiedWorkPackageId = stateParams.copiedFromWorkPackageId;
     return new Promise<WorkPackageChangeset>((resolve, reject) => {
-      this.wpCacheService.loadWorkPackage(stateParams.copiedFromWorkPackageId)
+      this.wpCacheService.loadWorkPackage(this.copiedWorkPackageId)
         .values$()
         .pipe(
           take(1)
         )
-        .subscribe(
-          (wp:WorkPackageResource) => this.createCopyFrom(wp).then(resolve),
-          reject);
+        .subscribe((wp:WorkPackageResource) => {
+          this.addRelationListener();
+          this.createCopyFrom(wp).then(resolve, reject);
+        });
     });
   }
 
@@ -52,7 +69,11 @@ export class WorkPackageCopyController extends WorkPackageCreateController {
   private createCopyFrom(wp:WorkPackageResource) {
     const changeset = this.wpEditing.changesetFor(wp);
     return changeset.getForm().then((form:any) => {
-      return this.wpCreate.copyWorkPackage(form, wp.project.identifier);
+      const workPackage = this.wpCreate.copyWorkPackage(form, wp.project.identifier);
+      workPackage.then((wp) => {
+        this.__initialized_at = wp.workPackage.__initialized_at;
+      });
+      return workPackage;
     });
   }
 }
